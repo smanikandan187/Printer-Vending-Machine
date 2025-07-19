@@ -2,7 +2,17 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+import os
+
+# Get the absolute path to the directory where app.py is located
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Define the path to the templates folder relative to basedir
+templates_dir = os.path.join(basedir, 'templates')
+
+# Initialize Flask app, explicitly telling it where to find templates
+app = Flask(__name__, template_folder=templates_dir)
+
 
 # Configuration for file uploads
 UPLOAD_FOLDER = 'uploads'
