@@ -1,24 +1,21 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for
 from werkzeug.utils import secure_filename
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
-import os
+app = Flask(__name__)
 
-# Get the absolute path to the directory where app.py is located
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-# Define the path to the templates folder relative to basedir
-templates_dir = os.path.join(basedir, 'templates')
-
-# Initialize Flask app, explicitly telling it where to find templates
-app = Flask(__name__, template_folder=templates_dir)
-
+# Configuration for Cloudinary
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+)
 
 # Configuration for file uploads
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'}
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 def allowed_file(filename):
@@ -58,15 +55,29 @@ def upload_file():
             # Secure the filename to prevent directory traversal attacks
             filename = secure_filename(file.filename)
             
-            # Create uploads directory if it doesn't exist
-            if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                os.makedirs(app.config['UPLOAD_FOLDER'])
-            
-            # Save the file to the uploads folder
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            
-            return f'File "{filename}" successfully uploaded and saved!'
+            try:
+                # Upload file to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    public_id=f"documents/{filename}",  # Organize files in a folder
+                    resource_type="auto"  # Automatically detect file type
+                )
+                
+                # Get the secure URL of the uploaded file
+                file_url = upload_result['secure_url']
+                public_id = upload_result['public_id']
+                
+                return f'''
+                <h2>File Successfully Uploaded to Cloud!</h2>
+                <p><strong>Filename:</strong> {filename}</p>
+                <p><strong>File URL:</strong> <a href="{file_url}" target="_blank">{file_url}</a></p>
+                <p><strong>Public ID:</strong> {public_id}</p>
+                <br>
+                <a href="/">Upload Another File</a>
+                '''
+                
+            except Exception as e:
+                return f'Upload failed: {str(e)}'
         else:
             return 'Upload failed: File type not allowed. Allowed types: txt, pdf, png, jpg, jpeg, gif, doc, docx, xls, xlsx, ppt, pptx'
     
